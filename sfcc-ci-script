@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Read authentication details from dw.json file
+dw_config=$(cat dw.json)
+client_id=$(echo "$dw_config" | jq -r '.client_id')
+client_secret=$(echo "$dw_config" | jq -r '.client_secret')
+username=$(echo "$dw_config" | jq -r '.username')
+password=$(echo "$dw_config" | jq -r '.password')
+
+# Login and Authentication
+sfcc-ci auth:login --client-id "$client_id" --client-secret "$client_secret" --username "$username" --password "$password"
+
+# Check if authentication succeeded
+if [ $? -eq 0 ]; then
+  echo "Authentication successful"
+
+  # Get the current day and time
+  current_day=$(date +%A)
+  current_time=$(date +%H%M)
+
+  # Stop sandboxes on Fridays at 6 PM
+  if [ "$current_day" == "Friday" ] && [ "$current_time" -ge 1800 ]; then
+    sfcc-ci sandbox:stop-all
+    echo "Stopped all sandboxes"
+  fi
+
+  # Start sandboxes on Sundays at 12 AM
+  if [ "$current_day" == "Sunday" ] && [ "$current_time" -lt 1200 ]; then
+    sfcc-ci sandbox:start-all
+    echo "Started all sandboxes"
+  fi
+
+  # Logout
+  sfcc-ci auth:logout
+else
+  echo "Authentication failed"
+fi
